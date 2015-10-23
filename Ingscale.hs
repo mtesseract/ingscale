@@ -331,13 +331,13 @@ parseFraction s =
        Nothing -> Left $ "Failed to parse fraction `" ++ s ++ "'"
        Just x  -> Right x
 
--- Try to parse a decimal number, including a correction rounding.
+-- Try to parse a decimal number.
 parseDecimalNumber :: String -> Either String Rational
 parseDecimalNumber s =
-    let result = readSigned readFloat s
+    let result = readSigned readFloat s :: [(Rational, String)]
     in case result of
-         []    -> Left $ "Failed to parse decimal number `" ++ s ++ "'"
-         (x:_) -> Right $ fst x
+         [(x, "")] -> Right x
+         _        -> Left $ "Failed to parse decimal number `" ++ s ++ "'"
 
 -- Try to parse a mixed number, e.g. a number of the form "5 23/42".
 parseMixed :: String -> Either String Rational
@@ -363,8 +363,9 @@ parseMixed s =
 -- a mixed number.
 parseNumber :: String -> Either String Rational
 parseNumber s =
-    let double = parseDecimalNumber s
-    in either (\ _ -> parseMixed s) Right double
+    let s' = strip s
+        double = parseDecimalNumber s'
+    in either (\ _ -> parseMixed s') Right double
 
 -- Parse a given quantity in its string representation, e.g. a string
 -- of the form "Water, 0.7 l".

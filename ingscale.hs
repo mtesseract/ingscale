@@ -98,7 +98,7 @@ ingscaleOptions = IngscaleOptions
          ( long "version"
          <> help "Display version information" )
      <*> strOption
-         ( value (show allowedError)
+         ( value (show ((fromRational allowedError) :: Double))
          <> long "allowed-error"
          <> metavar "EPSILON"
          <> help ("Specify the allowed approximation error (in percentage, default = " ++ (show allowedError) ++ ")"))
