@@ -530,13 +530,22 @@ approximateNumber epsilon x =
                 else (fst . head) approximationsSorted
 
 -- Try to round a given quantity, using the unitspecRound field
--- contained in the UnitSpecification. If for some reason the
--- UnitSpecification cannot be found, return the number unmodified.
+-- contained in the UnitSpecification. If the quantity's denominator
+-- is contained in goodDeminator, return the number unmodified.  If
+-- for some reason the UnitSpecification cannot be found, return the
+-- number unmodified.
 roundQuantity :: QuantityTransformer
 roundQuantity quantity =
-  let unit = quantityUnit quantity
-  in maybe quantity (roundIt quantity) (lookup unit unitSpecifications)
-  where roundIt :: Quantity -> UnitSpec -> Quantity
+  if quantityHasGoodDenominator quantity
+     then quantity
+     else let unit = quantityUnit quantity
+          in maybe quantity (roundIt quantity) (lookup unit unitSpecifications)
+
+  where quantityHasGoodDenominator :: Quantity -> Bool
+        quantityHasGoodDenominator (Quantity x _) =
+          (denominator x) `elem` goodDenominators
+
+        roundIt :: Quantity -> UnitSpec -> Quantity
         roundIt q spec =
           let digits  = unitspecRound spec
               number  = quantityNumber q
