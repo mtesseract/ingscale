@@ -1,5 +1,5 @@
 -- IngScale - Program for convenient scaling of ingredients lists.
--- Copyright (C) 2015 Moritz Schulte <mtesseract@silverratio.net>
+-- Copyright (C) 2015-2016 Moritz Schulte <mtesseract@silverratio.net>
 
 module Main where
 
@@ -32,10 +32,10 @@ ingscalePrintIngredients epsilon ingredients =
         iExt i =
           let quantity = ingredientQuantity i
               quantities = equivalentQuantities quantity
-              quantities' = map ((approximateQuantity epsilon) . roundQuantity) quantities
+              quantities' = map (approximateQuantity epsilon . roundQuantity) quantities
           in if null quantities'
                 then ""
-                else " [" ++ (concat $ intersperse ", " (map printQuantity quantities')) ++ "]"
+                else " [" ++ intercalate ", " (map printQuantity quantities') ++ "]"
               
 ingscaleByFactor :: Rational -> Rational -> IO ()
 ingscaleByFactor epsilon factor = do
@@ -72,11 +72,11 @@ ingscaleError :: String -> a
 ingscaleError msg = throw (ExceptionString msg)
 
 -- Throw an IngscaleException on Left, return Right otherwise.
-ingscaleError' :: (Either String a) -> a
-ingscaleError' val = either ingscaleError id val
+ingscaleError' :: Either String a -> a
+ingscaleError' = either ingscaleError id
 
 main' :: IngscaleOptions -> IO ()
-main' opts = do
+main' opts =
   catch (ingscale opts)
         (\ e -> case (e :: IngscaleException) of
                   ExceptionString s -> putStrLn $ "Error: " ++ s
@@ -94,24 +94,21 @@ allowedError = 0.05
 
 ingscaleOptions :: Parser IngscaleOptions
 ingscaleOptions = IngscaleOptions
-     <$> switch
-         ( long "version"
-         <> help "Display version information" )
-     <*> strOption
-         ( value (show ((fromRational allowedError) :: Double))
-         <> long "allowed-error"
-         <> metavar "EPSILON"
-         <> help ("Specify the allowed approximation error (in percentage, default = " ++ (show allowedError) ++ ")"))
-     <*> strOption
-         ( value ""
-         <> long "scale-to"
-         <> metavar "INGREDIENT"
-         <> help "Scale ingredients to a specific ingredient quantity" )
-     <*> strOption
-         ( value ""
-         <> long "scale-by"
-         <> metavar "FACTOR"
-         <> help "Scale ingredients by a factor" )
+  <$> switch (long "version"
+              <> help "Display version information")
+  <*> strOption (value (show (fromRational allowedError :: Double))
+                 <> long "allowed-error"
+                 <> metavar "EPSILON"
+                 <> help ("Specify the allowed approximation error (in \
+                          \percentage, default = " ++ show allowedError ++ ")"))
+  <*> strOption (value ""
+                 <> long "scale-to"
+                 <> metavar "INGREDIENT"
+                 <> help "Scale ingredients to a specific ingredient quantity")
+  <*> strOption (value ""
+                 <> long "scale-by"
+                 <> metavar "FACTOR"
+                 <> help "Scale ingredients by a factor")
 
 main :: IO ()
 main = execParser opts >>= main'

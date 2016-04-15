@@ -14,7 +14,7 @@ Here is an example:
 
 We can scale this ingredients list by a fixed factor, e.g.:
 
-    $ ./ingscale --scale-by 2 < example.txt
+    $ ingscale --scale-by 2 < example.txt
     Servings, 8 
     Soy Milk, 6 cup [1.42 l, 1420 ml, 288 tsp, 96 tbsp, 48 fl.oz]
     Salt, 1 tsp [5.0e-3 l, 5 ml, 2.0e-2 cup, 1/3 tbsp, 0.17 fl.oz]
@@ -25,7 +25,7 @@ We can scale this ingredients list by a fixed factor, e.g.:
 
 Or we can scale it to a fixed ingredient quantity, e.g.:
 
-    $ ./ingscale --scale-to "Soy Milk, 2.5 cup" < example.txt
+    $ ingscale --scale-to "Soy Milk, 2.5 cup" < example.txt
     Servings, 3 1/3 
     Soy Milk, 2 1/2 cup [0.591 l, 591 ml, 120 tsp, 40 tbsp, 20 fl.oz]
     Salt, 0.42 tsp [2.0e-3 l, 2 ml, 1.0e-2 cup, 0.14 tbsp, 7.0e-2 fl.oz]
