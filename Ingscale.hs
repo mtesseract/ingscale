@@ -27,17 +27,17 @@ module Ingscale (Unit(..),
                  printIngredients,
                  printIngredientsExt) where
 
-import Prelude
-import Data.Ratio
-import Text.Read
-import Data.Either
-import Data.List
-import Data.Char
-import Data.String.Utils
-import Data.List.Split
-import Numeric -- for 'readFloat'
-import Control.Monad -- for 'when'
+import           Control.Monad (when)
+import           Data.Char
+import           Data.Either
+import           Data.List
+import           Data.List.Split
+import           Data.Ratio
+import           Data.String.Utils
+import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
+import           Numeric (readFloat, readSigned)
+import           Text.Read
 
 ---------------
 -- Datatypes --
@@ -400,7 +400,7 @@ parseIngredient ingredientString = do
                [a,b] -> Right (a,b)
                _     -> Left $ "parseIngredients: Malformed ingredient line '" ++ string ++ "'"
 
-parseIngredientText :: T.Text -> Either String Ingredient
+parseIngredientText :: Text -> Either String Ingredient
 parseIngredientText = parseIngredient . T.unpack
 
 -- Parse input as an ingredients list. Each line has to be of the form:
@@ -418,7 +418,7 @@ parseIngredients ingredientsString =
 
 -- Just like parseIngredients, except the input data is passed as a
 -- Data.Text.Lazy.Text instead of a String.
-parseIngredientsText :: T.Text -> Either String [Ingredient]
+parseIngredientsText :: Text -> Either String [Ingredient]
 parseIngredientsText = parseIngredients . T.unpack
 
 -------------
