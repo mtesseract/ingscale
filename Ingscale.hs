@@ -38,8 +38,10 @@ import           Data.Ratio
 import           Data.String.Utils
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
+import           Formatting (format, float)
 import           Numeric (readFloat, readSigned)
 import           Text.Read
+
 ---------------
 -- Datatypes --
 ---------------
@@ -272,16 +274,11 @@ printMixed x' =
 -- denominators then display the number as a mixed number, otherwise
 -- display it as a real number.
 printRational :: Rational -> String
-printRational x' =
-    let x = abs x'
-        denom = denominator x
+printRational x =
+    let denom = abs (denominator x)
     in if denom `elem` goodDenominators
-       then printMixed x'
-       else let xReal = fromRational x' :: Double
-                xInt = round xReal
-            in if xReal - fromInteger xInt == 0
-               then show xInt
-               else show xReal
+       then printMixed x
+       else T.unpack $ format float x
 
 -- | Pretty print a Quantity.
 printQuantity :: Quantity -> String
@@ -554,19 +551,23 @@ roundQuantity :: QuantityTransformer
 roundQuantity quantity =
   if quantityHasGoodDenominator quantity
      then quantity
-     else let unit = quantityUnit quantity
-          in maybe quantity (roundIt quantity) (lookup unit unitSpecifications)
+     else let unit      = quantityUnit quantity
+              maybeSpec = lookup unit unitSpecifications
+              nDigits   = fromMaybe defaultNDigits (unitspecRound <$> maybeSpec)
+          in roundIt quantity nDigits
 
   where quantityHasGoodDenominator Quantity { quantityNumber = x } =
           denominator x `elem` goodDenominators
 
-        roundIt q spec =
-          let digits  = unitspecRound spec
-              number  = quantityNumber q
+        roundIt q digits =
+          let number  = quantityNumber q
               unit    = quantityUnit q
               number' = fromIntegral (round (number * 10^^digits) :: Integer) / 10^^digits
           in Quantity { quantityNumber = number'
                       , quantityUnit   = unit }
+
+        defaultNDigits :: Int
+        defaultNDigits = 2
 
 -- | Quantity Transformer: Approximate in a clever way.
 approximateQuantity :: Rational -> QuantityTransformer
