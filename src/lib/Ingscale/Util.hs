@@ -1,5 +1,7 @@
 module Ingscale.Util where
 
+import qualified Data.Text.Lazy as T (pack, Text)
+
 -------------------------------
 -- General Utility Functions --
 -------------------------------
@@ -8,3 +10,6 @@ module Ingscale.Util where
 maybeToEither :: a -> Maybe b -> Either a b
 maybeToEither _ (Just b) = Right b
 maybeToEither a Nothing  = Left  a
+
+showText :: Show a => a -> T.Text
+showText = T.pack . show

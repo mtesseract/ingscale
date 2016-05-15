@@ -3,22 +3,19 @@
 
 -- API is not necessarily stable.
 
-{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Ingscale.Parser
        ( parseNumber
        , parseQuantity
        , parseIngredient
-       , parseIngredientText
        , parseIngredients
-       , parseIngredientsText
        ) where
 
 import           Control.Lens
 import           Data.Char
-import           Data.List.Split
 import           Data.Maybe
-import           Data.String.Utils
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
 import           Ingscale.Types
@@ -31,46 +28,46 @@ import           Text.Read
 -------------
 
 -- | Convert a String into a Unit.
-stringToUnit :: String -> Unit
+stringToUnit :: Text -> Unit
 stringToUnit "" = UnitNone -- Degenerate case of a unitless Quantity,
                            -- i.e. only a number.
-stringToUnit string = fromMaybe (UnitOther string) (lookupUnitName string)
+stringToUnit u = fromMaybe (UnitOther u) (lookupUnitName u)
 
 -- | Extract the unit names, forming (String Name, Unit) pairs.
-lookupUnitName :: String -> Maybe Unit
+lookupUnitName :: Text -> Maybe Unit
 lookupUnitName n = listToMaybe $ _units^..ifolded.withIndex.filtered matchName._1
   where matchName (_, s) = n `elem` (s ^. name : s ^. aliases)
   
 -- | Try to parse an Integer.
-parseInt :: String -> Either String Integer
+parseInt :: Text -> Either Text Integer
 parseInt s =
-  let result = readMaybe s :: Maybe Integer
+  let result = readMaybe (T.unpack s) :: Maybe Integer
   in case result of
-       Nothing -> Left $ "Failed to parse integer `" ++ s ++ "'"
+       Nothing -> Left $ T.concat ["Failed to parse integer `", s, "'"]
        Just x  -> Right x
 
 -- | Try to parse a fraction of the form "x/y" into a Rational.
-parseFraction :: String -> Either String Rational
+parseFraction :: Text -> Either Text Rational
 parseFraction s =
-  let result = readMaybe (replace "/" "%" s)
+  let result = readMaybe (T.unpack (T.replace "/" "%" s))
   in case result of
-       Nothing -> Left $ "Failed to parse fraction `" ++ s ++ "'"
+       Nothing -> Left $ T.concat ["Failed to parse fraction `", s, "'"]
        Just x  -> Right x
 
 -- | Try to parse a decimal number.
-parseDecimalNumber :: String -> Either String Rational
+parseDecimalNumber :: Text -> Either Text Rational
 parseDecimalNumber s =
-    let result = readSigned readFloat s :: [(Rational, String)]
+    let result = readSigned readFloat (T.unpack s) :: [(Rational, String)]
     in case result of
          [(x, "")] -> Right x
-         _        -> Left $ "Failed to parse decimal number `" ++ s ++ "'"
+         _         -> Left $ T.concat ["Failed to parse decimal number `", s, "'"]
 
 -- | Try to parse a mixed number, e.g. a number of the form "5 23/42".
-parseMixed :: String -> Either String Rational
+parseMixed :: Text -> Either Text Rational
 parseMixed s =
-  let components = splitWs s
+  let components = T.words s
   in case components of
-    [c0] -> if '/' `elem` c0
+    [c0] -> if (not . T.null . T.filter (== '/')) c0
             then parseFraction c0
             else fromInteger <$> parseInt c0
     [c0, c1] -> do int <- parseInt c0
@@ -86,9 +83,9 @@ parseMixed s =
 -- | Try to parse a given number in string representation. First try
 -- to parse it as a decimal number and if that fails, try to parse it
 -- as a mixed number.
-parseNumber :: String -> Either String Rational
+parseNumber :: Text -> Either Text Rational
 parseNumber s' =
-  let s = strip s'
+  let s = T.strip s'
   in eitherAlternative "parseNumber: Internal Error"
        [parseDecimalNumber s, parseMixed s]
 
@@ -103,7 +100,7 @@ eitherAlternative def (Left _  : xs) = eitherAlternative def xs
 
 -- | Parse a given quantity in its string representation, e.g. a
 -- string of the form "0.7 l".
-parseQuantity :: String -> Either String Quantity
+parseQuantity :: Text -> Either Text Quantity
 parseQuantity string = do
   let (w0, w1) = splitAtUnit string
       u        = stringToUnit w1
@@ -111,44 +108,34 @@ parseQuantity string = do
   return $ Quantity num u
 
   where splitAtUnit s =
-          let num = takeWhile (not . isAlpha) s
-              u   = drop (length num) s
+          let num = T.takeWhile (not . isAlpha) s
+              u   = T.drop (T.length num) s
           in (num, u)
 
 -- | Parse a single Ingredient.
-parseIngredient :: String -> Either String Ingredient
+parseIngredient :: Text -> Either Text Ingredient
 parseIngredient ingredientString = do
   (ingName, ingQuant) <- splitIngredient ingredientString
   q <- parseQuantity ingQuant
   return $ Ingredient ingName q
   where splitIngredient ingS =
-          let stringWords = linesBy (== ',') ingS
+          let stringWords = T.splitOn "," ingS
           in case stringWords of
                [a,b] -> Right (a,b)
                _     -> Left $ errMsg ingS
 
-        errMsg :: String -> String
-        errMsg s = "parseIngredients: Malformed ingredient line '" ++ s ++ "'"
-
--- | Just like parseIngredient, except the input data is passed as a
--- Data.Text.Lazy.Text instead of a String.
-parseIngredientText :: Text -> Either String Ingredient
-parseIngredientText = parseIngredient . T.unpack
+        -- errMsg :: Text -> Text
+        errMsg s = T.concat ["parseIngredients: Malformed ingredient line '", s, "'"]
 
 -- | Parse input as an ingredients list. Each line has to be of the
 -- form:
 --
 --   <Ingredient Name>, <Number> <Unit Abbreviation>\n
 --
-parseIngredients :: String -> Either String [Ingredient]
+parseIngredients :: Text -> Either Text [Ingredient]
 parseIngredients ingredientsString =
-    foldl parseAndAdd (Right []) (lines ingredientsString)
+    foldl parseAndAdd (Right []) (T.lines ingredientsString)
   where parseAndAdd ingredientsList' ingredientString = do
           ingredientsList <- ingredientsList'
           ingredient <- parseIngredient ingredientString
           Right $ ingredientsList ++ [ingredient]
-
--- | Just like parseIngredients, except the input data is passed as a
--- Data.Text.Lazy.Text instead of a String.
-parseIngredientsText :: Text -> Either String [Ingredient]
-parseIngredientsText = parseIngredients . T.unpack

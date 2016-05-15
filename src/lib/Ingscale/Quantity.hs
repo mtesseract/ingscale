@@ -1,3 +1,10 @@
+-- IngScale - Library for convenient scaling of ingredients lists.
+-- Copyright (C) 2015-2016 Moritz Schulte <mtesseract@silverratio.net>
+
+-- API is not necessarily stable.
+
+{-# LANGUAGE OverloadedStrings #-}
+
 module Ingscale.Quantity where
 
 import           Control.Lens
@@ -8,6 +15,7 @@ import           Data.List (sortBy)
 import qualified Data.Map as M
 import           Data.Maybe
 import           Data.Ratio
+import           Data.Text.Lazy (Text)
 import           Ingscale.Types
 import           Ingscale.Units
 
@@ -84,14 +92,14 @@ approximateQuantity epsilon = number %~ approximateNumber epsilon
 -- | If possible, convert a given Quantity into a new Quantity using
 -- the specified Unit. Returns Nothing if the Unit of the specified
 -- Quantity cannot be converted to the specified Unit.
-convertQuantity :: Quantity -> Unit -> Either String Quantity
+convertQuantity :: Quantity -> Unit -> Either Text Quantity
 convertQuantity q toUnit = do
   factor <- conversionFactor (q^.unit) toUnit
   return (q & number //~ factor
             & unit .~ toUnit)
 
 -- quantity1 * computeScalingFactor' = quantity2
-computeScalingFactorQuantity :: Quantity -> Quantity -> Either String Rational
+computeScalingFactorQuantity :: Quantity -> Quantity -> Either Text Rational
 computeScalingFactorQuantity q1 q2 = do
   when (q1^.number == 0) $ Left "Quantity is zero."
   conversionUnit <- conversionFactor (q1^.unit) (q2^.unit)

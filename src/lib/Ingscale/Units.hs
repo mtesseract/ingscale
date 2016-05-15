@@ -3,7 +3,8 @@
 
 -- API is not necessarily stable.
 
-{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Ingscale.Units
        ( _units
@@ -18,6 +19,8 @@ module Ingscale.Units
 import           Control.Lens
 import           Data.Map (Map, fromList)
 import qualified Data.Map as M
+import           Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 import           Ingscale.Types
 import           Ingscale.Util
 
@@ -91,13 +94,13 @@ _units = fromList
 
 -- | Given a Unit, lookup its base Unit (every Unit needs a base
 -- Unit!).
-lookupBaseUnit :: Unit -> Either String Unit
+lookupBaseUnit :: Unit -> Either Text Unit
 lookupBaseUnit u =
   maybeToEither errMsg (view base <$> lookupUnitSpec u)
-  where errMsg = "Failed to lookup base unit for unit " ++ printUnit u
+  where errMsg = T.concat ["Failed to lookup base unit for unit ", printUnit u]
 
 -- | Pretty printing for Units.
-printUnit :: Unit -> String
+printUnit :: Unit -> Text
 printUnit u =
     case u of
       UnitNone -> ""
@@ -116,10 +119,10 @@ lookupUnitSpec :: Unit -> Maybe UnitSpec
 lookupUnitSpec = flip M.lookup _units
 
 -- | Lookup the conversion factor for a given unit.
-lookupConversionFactor :: Unit -> Either String Rational
+lookupConversionFactor :: Unit -> Either Text Rational
 lookupConversionFactor u =
   maybeToEither errMsg (view conversion <$> lookupUnitSpec u)
-  where errMsg = "failed to lookup conversion factor for unit " ++ show u
+  where errMsg = T.concat ["failed to lookup conversion factor for unit ", showText u]
 
 ---------------------
 -- Unit Conversion --
@@ -127,7 +130,7 @@ lookupConversionFactor u =
 
 -- | Compute conversion factor required for transforming between
 -- Units: fromUnit * conversionFactor(fromUnit, toUnit) = toUnit
-conversionFactor :: Unit -> Unit -> Either String Rational
+conversionFactor :: Unit -> Unit -> Either Text Rational
 conversionFactor fromUnit toUnit
   | fromUnit == toUnit = Right 1 -- Short cut. Also necessary for
                                  -- UnitOther values, which do not
@@ -139,5 +142,7 @@ conversionFactor fromUnit toUnit
          then do factor1 <- lookupConversionFactor toUnit
                  factor2 <- lookupConversionFactor fromUnit
                  return $ factor1 / factor2
-         else Left $ "Base unit mismatch for units "
-                       ++ printUnit fromUnit ++ " and " ++ printUnit toUnit
+         else Left $ T.concat [ "Base unit mismatch for units "
+                              , printUnit fromUnit
+                              , " and "
+                              , printUnit toUnit ]

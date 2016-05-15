@@ -3,6 +3,8 @@
 
 -- API is not necessarily stable.
 
+{-# LANGUAGE OverloadedStrings #-}
+
 module Ingscale (Unit(..),
                  Quantity(..),
                  Ingredient(..),
@@ -12,9 +14,7 @@ module Ingscale (Unit(..),
                  parseNumber,
                  parseQuantity,
                  parseIngredient,
-                 parseIngredientText,
                  parseIngredients,
-                 parseIngredientsText,
                  roundQuantity,
                  computeScalingFactor,
                  computeScalingFactorQuantity,
@@ -27,6 +27,7 @@ module Ingscale (Unit(..),
 
 import Control.Lens
 import Data.Maybe (listToMaybe)
+import Data.Text.Lazy (Text)
 import Ingscale.Parser
 import Ingscale.Printer
 import Ingscale.Quantity
@@ -41,13 +42,13 @@ import Ingscale.Util
 -- | Given an ingredients list INGREDIENTS and a NAME, try to extract
 -- the single ingredient by that name. Returns Nothing if INGREDIENTS
 -- does not contain an ingredient by that name.
-extractIngredient :: [Ingredient] -> String -> Maybe Ingredient
+extractIngredient :: [Ingredient] -> Text -> Maybe Ingredient
 extractIngredient ingredients n =
   listToMaybe $ filter ((==) n . view name) ingredients
 
 -- | Like extractIngredient, but do not compute the complete
 -- Ingredient datatype, return only its contained Quantity.
-extractIngredientQuantity :: [Ingredient] -> String -> Maybe Quantity
+extractIngredientQuantity :: [Ingredient] -> Text -> Maybe Quantity
 extractIngredientQuantity ingredients n =
  view quantity <$> extractIngredient ingredients n
 
@@ -68,7 +69,7 @@ scaleIngredients factor =
 -- factor by which the ingredients list has to be scaled such that the
 -- ingredient with the same name as INGREDIENT contained in
 -- INGREDIENTS has exactly the quantity of INGREDIENT.
-computeScalingFactor :: [Ingredient] -> Ingredient -> Either String Rational
+computeScalingFactor :: [Ingredient] -> Ingredient -> Either Text Rational
 computeScalingFactor ingredients i = do
   q1 <- maybeToEither "Ingredient not found in list" $
     extractIngredientQuantity ingredients (i ^. name)

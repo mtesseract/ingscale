@@ -25,7 +25,8 @@ module Ingscale.Types
        , quantity
        ) where
 
-import           Control.Lens
+import Control.Lens
+import Data.Text.Lazy (Text)
 
 ---------------
 -- Datatypes --
@@ -44,15 +45,15 @@ data Unit = UnitNone
           | UnitKG
           | UnitLB
           | UnitOZ
-          | UnitOther String deriving (Eq, Show, Read, Ord)
+          | UnitOther Text deriving (Eq, Show, Read, Ord)
 
 -- | A UnitSpec datatype defines a unit completely.
 data UnitSpec = UnitSpec
-  { unitSpecName       :: String   -- Abbreviation of this unit.
+  { unitSpecName       :: Text     -- Abbreviation of this unit.
   , unitSpecBase       :: Unit     -- The unit in which terms this unit is defined.
   , unitSpecConversion :: Rational -- Conversion factor from this unit to the base unit.
   , unitSpecDigits     :: Int      -- Number of digits after a decimal point we want.
-  , unitSpecAliases    :: [String] -- A list of abbreviation aliases for this unit.
+  , unitSpecAliases    :: [Text]   -- A list of abbreviation aliases for this unit.
   } deriving (Show)
 
 makeFields ''UnitSpec
@@ -66,7 +67,7 @@ makeFields ''Quantity
 
 -- | An Ingredient is the combination of an ingredient name and a
 -- Quantity.
-data Ingredient = Ingredient { ingredientName     :: String
+data Ingredient = Ingredient { ingredientName     :: Text
                              , ingredientQuantity :: Quantity } deriving (Show)
 
 makeFields ''Ingredient
