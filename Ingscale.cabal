@@ -25,7 +25,12 @@ Library
                       , text
                       , utf8-string
   Exposed-modules:      Ingscale
-
+                      , Ingscale.Types
+                      , Ingscale.Parser
+                      , Ingscale.Units
+                      , Ingscale.Quantity
+                      , Ingscale.Printer
+                      , Ingscale.Util
 
 executable ingscale
   default-language:  Haskell2010
@@ -36,4 +41,3 @@ executable ingscale
                       , base >= 4.7 && < 5
                       , optparse-applicative
                       , Ingscale
-
