@@ -3,6 +3,13 @@
 
 -- API is not necessarily stable.
 
+{-# LANGUAGE TemplateHaskell        #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE TypeSynonymInstances   #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FlexibleContexts       #-}
+
 module Ingscale (Unit(..),
                  Quantity(..),
                  Ingredient(..),
@@ -19,20 +26,20 @@ module Ingscale (Unit(..),
                  computeScalingFactor,
                  computeScalingFactorQuantity,
                  approximateQuantity,
-                 transformIngredient,
-                 transformIngredients,
                  scaleIngredients,
                  printQuantity,
                  printIngredient,
                  printIngredients,
                  printIngredientsExt) where
 
+import           Control.Lens
 import           Control.Monad (when)
 import           Data.Char
 import           Data.Either
 import           Data.Function (on)
 import           Data.List
 import           Data.List.Split
+import qualified Data.Map as M
 import           Data.Maybe
 import           Data.Ratio
 import           Data.String.Utils
@@ -59,157 +66,152 @@ data Unit = UnitNone
           | UnitKG
           | UnitLB
           | UnitOZ
-          | UnitOther String deriving (Eq, Show, Read)
+          | UnitOther String deriving (Eq, Show, Read, Ord)
 
 -- | A UnitSpec datatype defines a unit completely.
 data UnitSpec = UnitSpec
-  { unitspecName       :: String   -- Abbreviation of this unit.
-  , unitspecBase       :: Unit     -- The unit in which terms this unit is defined.
-  , unitspecConversion :: Rational -- Conversion factor from this unit to the base unit.
-  , unitspecRound      :: Int      -- Number of digits after a decimal point we want.
-  , unitspecAliases    :: [String] -- A list of abbreviation aliases for this unit.
+  { unitSpecName       :: String   -- Abbreviation of this unit.
+  , unitSpecBase       :: Unit     -- The unit in which terms this unit is defined.
+  , unitSpecConversion :: Rational -- Conversion factor from this unit to the base unit.
+  , unitSpecDigits     :: Int      -- Number of digits after a decimal point we want.
+  , unitSpecAliases    :: [String] -- A list of abbreviation aliases for this unit.
   } deriving (Show)
+
+makeFields ''UnitSpec
 
 -- | A Quantity is the combination of a (rational) number and a Unit.
 data Quantity = Quantity { quantityNumber :: Rational
                          , quantityUnit :: Unit
                          } deriving (Show)
 
+makeFields ''Quantity
+
 -- | An Ingredient is the combination of an ingredient name and a
 -- Quantity.
 data Ingredient = Ingredient { ingredientName     :: String
                              , ingredientQuantity :: Quantity } deriving (Show)
+
+makeFields ''Ingredient
 
 -------------------------
 -- Unit Specifications --
 -------------------------
 
 -- | This list contains all unit specifications.
-unitSpecifications :: [(Unit, UnitSpec)]
-unitSpecifications =
+_units :: M.Map Unit UnitSpec
+_units = M.fromList
   [(UnitL, -- Liter
-    UnitSpec { unitspecName       = "l"
-             , unitspecBase       = UnitL
-             , unitspecConversion = 1
-             , unitspecRound      = 3
-             , unitspecAliases    = [] }),
+    UnitSpec { unitSpecName       = "l"
+             , unitSpecBase       = UnitL
+             , unitSpecConversion = 1
+             , unitSpecDigits     = 3
+             , unitSpecAliases    = [] }),
    (UnitML, -- Mililiter
-    UnitSpec { unitspecName       = "ml"
-             , unitspecBase       = UnitL
-             , unitspecConversion = 0.001
-             , unitspecRound      = 0
-             , unitspecAliases    = [] }),
+    UnitSpec { unitSpecName       = "ml"
+             , unitSpecBase       = UnitL
+             , unitSpecConversion = 0.001
+             , unitSpecDigits     = 0
+             , unitSpecAliases    = [] }),
    (UnitCup, -- Cup
-    UnitSpec { unitspecName       = "cup"
-             , unitspecBase       = UnitL
-             , unitspecConversion =  0.236588236
-             , unitspecRound      = 2
-             , unitspecAliases    = ["cups"] }),
+    UnitSpec { unitSpecName       = "cup"
+             , unitSpecBase       = UnitL
+             , unitSpecConversion =  0.236588236
+             , unitSpecDigits     = 2
+             , unitSpecAliases    = ["cups"] }),
    (UnitTSP, -- Teaspoon
-    UnitSpec { unitspecName       = "tsp"
-             , unitspecBase       = UnitL
-             , unitspecConversion = 0.00492892159
-             , unitspecRound      = 2
-             , unitspecAliases    = [] }),
+    UnitSpec { unitSpecName       = "tsp"
+             , unitSpecBase       = UnitL
+             , unitSpecConversion = 0.00492892159
+             , unitSpecDigits     = 2
+             , unitSpecAliases    = [] }),
    (UnitTBSP, -- Tablespoon
-    UnitSpec { unitspecName       = "tbsp"
-             , unitspecBase       = UnitL
-             , unitspecConversion = 0.0147867648
-             , unitspecRound      = 2
-             , unitspecAliases    = [] }),
+    UnitSpec { unitSpecName       = "tbsp"
+             , unitSpecBase       = UnitL
+             , unitSpecConversion = 0.0147867648
+             , unitSpecDigits     = 2
+             , unitSpecAliases    = [] }),
    (UnitFLOZ, -- Fluid Ounce
-    UnitSpec { unitspecName       = "fl.oz"
-             , unitspecBase       = UnitL
-             , unitspecConversion = 0.0295735295625
-             , unitspecRound      = 2
-             , unitspecAliases    = [] }),
+    UnitSpec { unitSpecName       = "fl.oz"
+             , unitSpecBase       = UnitL
+             , unitSpecConversion = 0.0295735295625
+             , unitSpecDigits     = 2
+             , unitSpecAliases    = [] }),
    (UnitKG, -- Kilogram
-    UnitSpec { unitspecName       = "kg"
-             , unitspecBase       = UnitG
-             , unitspecConversion = 1
-             , unitspecRound      = 3
-             , unitspecAliases    = [] }),
+    UnitSpec { unitSpecName       = "kg"
+             , unitSpecBase       = UnitKG
+             , unitSpecConversion = 1
+             , unitSpecDigits     = 3
+             , unitSpecAliases    = [] }),
    (UnitG, -- Gram
-    UnitSpec { unitspecName       = "g"
-             , unitspecBase       = UnitKG
-             , unitspecConversion = 0.001
-             , unitspecRound      = 0
-             , unitspecAliases    = [] }),
+    UnitSpec { unitSpecName       = "g"
+             , unitSpecBase       = UnitKG
+             , unitSpecConversion = 0.001
+             , unitSpecDigits     = 0
+             , unitSpecAliases    = [] }),
    (UnitOZ, -- Ounce
-    UnitSpec { unitspecName       = "oz"
-             , unitspecBase       = UnitKG
-             , unitspecConversion = 0.0283495
-             , unitspecRound      = 2
-             , unitspecAliases    = [] }),
+    UnitSpec { unitSpecName       = "oz"
+             , unitSpecBase       = UnitKG
+             , unitSpecConversion = 0.0283495
+             , unitSpecDigits     = 2
+             , unitSpecAliases    = [] }),
    (UnitLB, -- Pound
-    UnitSpec { unitspecName       = "lb"
-             , unitspecBase       = UnitG
-             , unitspecConversion = 0.45359237
-             , unitspecRound      = 2
-             , unitspecAliases    = [] })]
+    UnitSpec { unitSpecName       = "lb"
+             , unitSpecBase       = UnitKG
+             , unitSpecConversion = 0.45359237
+             , unitSpecDigits     = 2
+             , unitSpecAliases    = [] })]
 
 -----------------------------------------
 -- Ingscale Specific Utility Functions --
 -----------------------------------------
 
 -- | Extract the unit names, forming (String Name, Unit) pairs.
-unitNames :: [(String, Unit)]
-unitNames =
-  concatMap (\ (unit, spec) -> zip (extractNames spec) (repeat unit))
-    unitSpecifications
-  where extractNames spec = unitspecName spec : unitspecAliases spec
-
+lookupUnitName :: String -> Maybe Unit
+lookupUnitName n = listToMaybe $ _units^..ifolded.withIndex.filtered matchName._1
+  where matchName (_, s) = n `elem` (s ^. name : s ^. aliases)
+  
 -- | Convert a String into a Unit.
 stringToUnit :: String -> Unit
 stringToUnit "" = UnitNone -- Degenerate case of a unitless Quantity,
                            -- i.e. only a number.
-stringToUnit string =
-  fromMaybe (UnitOther string) (lookup string unitNames)
+stringToUnit string = fromMaybe (UnitOther string) (lookupUnitName string)
 
 -- | Extract Units for a specified base Unit.
 filterUnitsByBase :: Unit -> [Unit]
-filterUnitsByBase unit =
-    map fst $ filter (matchBaseUnit unit) unitSpecifications
-  where matchBaseUnit u (_, spec) = u == unitspecBase spec
+filterUnitsByBase u =
+  _units^..ifolded.withIndex.filtered matchBase._1
+  where matchBase (_, s) = s ^. base == u
 
 -- | Given a Unit, lookup its UnitSpecification. Note that UnitOther
 -- has no Unit specification, hence we need a Maybe type here.
 lookupUnitSpec :: Unit -> Maybe UnitSpec
-lookupUnitSpec unit = lookup unit unitSpecifications
-
--- | General function for looking up a UnitSpecification and computing
--- a value from that Specification.
-lookupUnitSpec' :: Unit -> (UnitSpec -> a) -> Maybe a
-lookupUnitSpec' unit transformer = transformer <$> lookupUnitSpec unit
+lookupUnitSpec = flip M.lookup _units
 
 -- | Lookup the conversion factor for a given unit.
 lookupConversionFactor :: Unit -> Either String Rational
-lookupConversionFactor unit =
-  maybeToEither errMsg (lookupUnitSpec' unit unitspecConversion)
-  where errMsg = "failed to lookup conversion factor for unit " ++ show unit
+lookupConversionFactor u =
+  maybeToEither errMsg (view conversion <$> lookupUnitSpec u)
+  where errMsg = "failed to lookup conversion factor for unit " ++ show u
 
 -- | Given a Unit, lookup its base Unit (every Unit needs a base
 -- Unit!).
 lookupBaseUnit :: Unit -> Either String Unit
-lookupBaseUnit unit =
-  maybeToEither errMsg (lookupUnitSpec' unit unitspecBase)
-  where errMsg = "Failed to lookup base unit for unit " ++ printUnit unit
+lookupBaseUnit u =
+  maybeToEither errMsg (view base <$> lookupUnitSpec u)
+  where errMsg = "Failed to lookup base unit for unit " ++ printUnit u
 
 -- | Given an ingredients list INGREDIENTS and a NAME, try to extract
 -- the single ingredient by that name. Returns Nothing if INGREDIENTS
 -- does not contain an ingredient by that name.
 extractIngredient :: [Ingredient] -> String -> Maybe Ingredient
-extractIngredient ingredients name =
-    let result = filter (\ ingredient -> ingredientName ingredient == name) ingredients
-    in if null result
-       then Nothing
-       else Just (head result)
+extractIngredient ingredients n =
+  listToMaybe $ filter ((==) n . view name) ingredients
 
 -- | Like extractIngredient, but do not compute the complete
 -- Ingredient datatype, return only its contained Quantity.
 extractIngredientQuantity :: [Ingredient] -> String -> Maybe Quantity
-extractIngredientQuantity ingredients name =
- ingredientQuantity <$> extractIngredient ingredients name
+extractIngredientQuantity ingredients n =
+ view quantity <$> extractIngredient ingredients n
 
 -------------------------------
 -- General Utility Functions --
@@ -226,12 +228,11 @@ maybeToEither a Nothing  = Left  a
 
 -- | Pretty printing for Units.
 printUnit :: Unit -> String
-printUnit unit =
-    case unit of
+printUnit u =
+    case u of
       UnitNone -> ""
       UnitOther s -> s
-      _ -> let spec = lookup unit unitSpecifications
-           in maybe "" unitspecName spec
+      _ -> maybe "" (view name) $ M.lookup u _units
 
 -- | Convert a rational number into its string representation as a
 -- mixed number; e.g. 1 % 2 => "1/2".
@@ -282,15 +283,13 @@ printRational x =
 
 -- | Pretty print a Quantity.
 printQuantity :: Quantity -> String
-printQuantity Quantity { quantityNumber = number, quantityUnit = unit } =
-  printRational number ++ " " ++ printUnit unit
+printQuantity q =
+  printRational (q ^. number) ++ " " ++ printUnit (q ^. unit)
 
 -- | Pretty print a single Ingredient.
 printIngredient :: Ingredient -> String
 printIngredient i =
-  let name     = ingredientName i
-      quantity = ingredientQuantity i
-  in name ++ ", " ++ printQuantity quantity
+  (i ^. name) ++ ", " ++ printQuantity (i ^. quantity)
 
 -- | Pretty print an ingredients list.
 printIngredients :: [Ingredient] -> String
@@ -309,12 +308,12 @@ printIngredientsExt ingredients iExt =
 -- | Given a Quantity, Compute the list of "equivalent Quantities".
 equivalentQuantities :: Quantity -> [Quantity]
 equivalentQuantities q =
-  let unit = quantityUnit q
-      baseUnit = lookupBaseUnit unit
-  in case baseUnit of
-       Left _      -> []
-       Right bUnit -> let units = filter (/= unit) (filterUnitsByBase bUnit)
-                      in rights $ map (convertQuantity q) units
+  case lookupBaseUnit (q^.unit) of
+    Left _  ->
+      []
+    Right b ->
+      filterUnitsByBase b ^.. traverse.filtered (/= q^.unit) &
+      rights . map (convertQuantity q)
 
 -------------
 -- Parsers --
@@ -385,22 +384,21 @@ eitherAlternative def (Left _  : xs) = eitherAlternative def xs
 parseQuantity :: String -> Either String Quantity
 parseQuantity string = do
   let (w0, w1) = splitAtUnit string
-      unit     = stringToUnit w1
+      u        = stringToUnit w1
   num <- parseNumber w0
-  return Quantity { quantityNumber = num, quantityUnit = unit }
+  return $ Quantity num u
 
   where splitAtUnit s =
-          let num  = takeWhile (not . isAlpha) s
-              unit = drop (length num) s
-          in (num, unit)
+          let num = takeWhile (not . isAlpha) s
+              u   = drop (length num) s
+          in (num, u)
 
 -- | Parse a single Ingredient.
 parseIngredient :: String -> Either String Ingredient
 parseIngredient ingredientString = do
   (ingName, ingQuant) <- splitIngredient ingredientString
-  quantity <- parseQuantity ingQuant
-  return Ingredient { ingredientName = ingName
-                    , ingredientQuantity = quantity }
+  q <- parseQuantity ingQuant
+  return $ Ingredient ingName q
   where splitIngredient ingS =
           let stringWords = linesBy (== ',') ingS
           in case stringWords of
@@ -439,42 +437,30 @@ parseIngredientsText = parseIngredients . T.unpack
 
 -- | Quantity Transformer: Scale a given Quantity by a given factor.
 scaleQuantity :: Rational -> QuantityTransformer
-scaleQuantity factor (Quantity number unit) =
-  Quantity { quantityNumber = number * factor
-           , quantityUnit   = unit }
-
--- | Scale the ingredient INGREDIENT by the factor FACTOR.
-scaleIngredient :: Rational -> Ingredient -> Ingredient
-scaleIngredient factor ingredient =
-  let name = ingredientName ingredient
-      quantity = ingredientQuantity ingredient
-      quantity' = scaleQuantity factor quantity
-  in Ingredient { ingredientName = name, ingredientQuantity = quantity' }
+scaleQuantity factor = number *~ factor
 
 -- | Scale the ingredients list INGREDIENTS by the factor FACTOR.
 scaleIngredients :: Rational -> [Ingredient] -> [Ingredient]
-scaleIngredients factor ingredients = 
-  let ingredients' = map (scaleIngredient factor) ingredients
-  in transformIngredients roundQuantity ingredients'
+scaleIngredients factor =
+  traverse . quantity %~ (roundQuantity . scaleQuantity factor)
 
 -- | Given a list of INGREDIENTS and another INGREDIENT, compute the
 -- factor by which the ingredients list has to be scaled such that the
 -- ingredient with the same name as INGREDIENT contained in
 -- INGREDIENTS has exactly the quantity of INGREDIENT.
 computeScalingFactor :: [Ingredient] -> Ingredient -> Either String Rational
-computeScalingFactor ingredients ingredient = do
-  let name = ingredientName ingredient
-  quantity1 <- maybeToEither "Ingredient not found in list" $
-                 extractIngredientQuantity ingredients name
-  let quantity2 = ingredientQuantity ingredient
-  computeScalingFactorQuantity quantity1 quantity2
+computeScalingFactor ingredients i = do
+  q1 <- maybeToEither "Ingredient not found in list" $
+    extractIngredientQuantity ingredients (i ^. name)
+  let q2 = i ^. quantity
+  computeScalingFactorQuantity q1 q2
 
 -- quantity1 * computeScalingFactor' = quantity2
 computeScalingFactorQuantity :: Quantity -> Quantity -> Either String Rational
-computeScalingFactorQuantity (Quantity num1 unit1) (Quantity num2 unit2) = do
-  when (num1 == 0) $ Left "Quantity is zero."
-  conversionUnit <- conversionFactor unit1 unit2
-  return $ conversionUnit * (num2 / num1)
+computeScalingFactorQuantity q1 q2 = do
+  when (q1^.number == 0) $ Left "Quantity is zero."
+  conversionUnit <- conversionFactor (q1^.unit) (q2^.unit)
+  return $ conversionUnit * (q2^.number / q1^.number)
 
 ---------------------
 -- Unit Conversion --
@@ -501,10 +487,10 @@ conversionFactor fromUnit toUnit
 -- the specified Unit. Returns Nothing if the Unit of the specified
 -- Quantity cannot be converted to the specified Unit.
 convertQuantity :: Quantity -> Unit -> Either String Quantity
-convertQuantity (Quantity number unit) toUnit = do
-  factor <- conversionFactor unit toUnit
-  return Quantity { quantityNumber = number / factor
-                  , quantityUnit   = toUnit }
+convertQuantity q toUnit = do
+  factor <- conversionFactor (q^.unit) toUnit
+  return (q & number //~ factor
+            & unit .~ toUnit)
 
 -------------------------------------------------------------------
 -- Quantity & Ingredient Transformers (Rounding & Approximation) --
@@ -521,8 +507,7 @@ goodDenominators = [2, 3, 4]
 -- | List of "good" fractions, derived from goodDenominators above.
 goodFractions :: [Rational]
 goodFractions = [0, 1] ++ map (uncurry (%)) goodPairs
-  where goodPairs :: [(Integer, Integer)]
-        goodPairs = concatMap (\ d -> zip [1..d-1] (repeat d)) goodDenominators
+  where goodPairs = concatMap (\ d -> zip [1..d-1] (repeat d)) goodDenominators
 
 -- | Try to approximate a number in a clever way. I.e., use fractions
 -- from goodFractions if possible.
@@ -542,49 +527,25 @@ approximateNumber epsilon x =
               approximationsSorted   = sortBy (compare `on` snd) approximationsFiltered
           in fromMaybe y (fst <$> listToMaybe approximationsSorted)
 
--- | Try to round a given quantity, using the unitspecRound field
+-- | Try to round a given quantity, using the unitSpecRound field
 -- contained in the UnitSpecification. If the quantity's denominator
 -- is contained in goodDeminator, return the number unmodified.  If
 -- for some reason the UnitSpecification cannot be found, return the
 -- number unmodified.
 roundQuantity :: QuantityTransformer
-roundQuantity quantity =
-  if quantityHasGoodDenominator quantity
-     then quantity
-     else let unit      = quantityUnit quantity
-              maybeSpec = lookup unit unitSpecifications
-              nDigits   = fromMaybe defaultNDigits (unitspecRound <$> maybeSpec)
-          in roundIt quantity nDigits
+roundQuantity q =
+  if denominator (q^.number) `elem` goodDenominators
+     then q
+     else let maybeSpec = M.lookup (q ^. unit) _units
+              nDigits   = fromMaybe defaultNDigits (view digits <$> maybeSpec)
+          in q & number %~ roundIt nDigits
 
-  where quantityHasGoodDenominator Quantity { quantityNumber = x } =
-          denominator x `elem` goodDenominators
-
-        roundIt q digits =
-          let number  = quantityNumber q
-              unit    = quantityUnit q
-              number' = fromIntegral (round (number * 10^^digits) :: Integer) / 10^^digits
-          in Quantity { quantityNumber = number'
-                      , quantityUnit   = unit }
+  where roundIt nDigits num =
+          fromIntegral (round (num * 10^^nDigits) :: Integer) / 10^^nDigits
 
         defaultNDigits :: Int
         defaultNDigits = 2
 
 -- | Quantity Transformer: Approximate in a clever way.
 approximateQuantity :: Rational -> QuantityTransformer
-approximateQuantity epsilon Quantity { quantityNumber = number
-                                     , quantityUnit = unit } =
-  let number' = approximateNumber epsilon number
-  in Quantity { quantityNumber = number'
-              , quantityUnit = unit }
-
--- | Transform an Ingredient using a Quantity transformer.
-transformIngredient :: QuantityTransformer -> Ingredient -> Ingredient
-transformIngredient transformer ingredient =
-  let quantity = ingredientQuantity ingredient
-      quantity' = transformer quantity
-  in ingredient { ingredientQuantity = quantity' }
-
--- | Transform an Ingredients list using a Quantity transformer.
-transformIngredients :: QuantityTransformer -> [Ingredient] -> [Ingredient]
-transformIngredients transformer =
-  map (transformIngredient transformer)
+approximateQuantity epsilon = number %~ approximateNumber epsilon

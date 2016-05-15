@@ -1,5 +1,5 @@
 name:                Ingscale
-version:             0.0.1.0
+version:             0.0.2.0
 synopsis:            Library for scaling of ingredients lists
 description:         Please see README.md
 homepage:            http://github.com/mtesseract/Ingscale#readme
@@ -16,7 +16,9 @@ Library
   ghc-options:        -Wall
   Build-Depends:	MissingH
                       , base >= 4.7 && < 5
+                      , containers >= 0.5.6.2
                       , formatting >= 6.2.2
+                      , lens >= 4.13 && < 5
                       , split
                       , text
                       , utf8-string
@@ -28,6 +30,8 @@ executable ingscale
   main-is:           ingscale.hs
   build-depends:	MissingH
                       , base >= 4.7 && < 5
+                      , lens >= 4.13 && < 5
+                      , containers >= 0.5.6.2
                       , formatting >= 6.2.2
                       , optparse-applicative
                       , split
