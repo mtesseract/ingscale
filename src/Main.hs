@@ -13,6 +13,8 @@ import qualified Data.Text.Lazy.IO as TIO
 import           Data.Typeable
 import           Ingscale
 import           Options.Applicative
+import           Paths_Ingscale
+import           Data.Version (showVersion)
 
 data IngscaleException = ExceptionString Text | ExceptionNone
     deriving (Show, Typeable)
@@ -26,7 +28,7 @@ programName :: Text
 programName = "ingscale"
 
 programVersion :: Text
-programVersion = "0.1-git"
+programVersion = T.pack $ showVersion version
 
 programDescription :: Text
 programDescription = "Program for convenient scaling of ingredients lists"

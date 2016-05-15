@@ -40,3 +40,4 @@ executable ingscale
                       , optparse-applicative
                       , Ingscale
                       , text
+  other-modules:        Paths_Ingscale
