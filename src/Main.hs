@@ -11,10 +11,12 @@ import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as TIO
 import           Data.Typeable
+import           Data.Version (showVersion)
 import           Ingscale
 import           Options.Applicative
 import           Paths_Ingscale
-import           Data.Version (showVersion)
+import           Quantities
+import           Quantities.Printer
 
 data IngscaleException = ExceptionString Text | ExceptionNone
     deriving (Show, Typeable)
@@ -43,7 +45,7 @@ ingscalePrintIngredients epsilon ingredients =
               qs' = map (approximateQuantity epsilon . roundQuantity) qs
           in if null qs'
                 then ""
-                else T.concat [" [", T.intercalate ", " (map printQuantity qs'), "]"]
+                else T.concat [" [", T.intercalate ", " (map (printQuantity printNumber) qs'), "]"]
               
 ingscaleByFactor :: Rational -> Rational -> IO ()
 ingscaleByFactor epsilon factor = do
@@ -56,7 +58,7 @@ ingscaleToQuantity :: Rational -> Ingredient -> IO ()
 ingscaleToQuantity epsilon ingredient = do
   input <- TIO.getContents
   let ingredients = ingscaleError' (parseIngredients input)
-      factor = ingscaleError' (computeScalingFactor ingredients ingredient)
+      factor = ingscaleError' (computeScalingFactorIng ingredients ingredient)
       ingredients' = scaleIngredients factor ingredients
   TIO.putStr $ ingscalePrintIngredients epsilon ingredients'
 

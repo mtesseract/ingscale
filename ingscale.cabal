@@ -1,4 +1,4 @@
-name:                Ingscale
+name:                ingscale
 version:             0.0.2.0
 synopsis:            Library for scaling of ingredients lists
 description:         Please see README.md
@@ -23,13 +23,8 @@ Library
                       , split
                       , text
                       , utf8-string
+                      , quantities
   Exposed-modules:      Ingscale
-                      , Ingscale.Types
-                      , Ingscale.Parser
-                      , Ingscale.Units
-                      , Ingscale.Quantity
-                      , Ingscale.Printer
-                      , Ingscale.Util
 
 executable ingscale
   default-language:  Haskell2010
@@ -38,12 +33,12 @@ executable ingscale
   main-is:           Main.hs
   build-depends:	base >= 4.7 && < 5
                       , optparse-applicative
-                      , Ingscale
+                      , ingscale
+                      , quantities
                       , text
   ghc-options:       -Wall
   default-language:  Haskell2010
-
---  other-modules:        Ingscale
+  other-modules:     Paths_Ingscale
 
 Test-Suite tests
   default-language:    Haskell2010
@@ -58,6 +53,5 @@ Test-Suite tests
                      , test-framework-hunit
                      , test-framework-quickcheck2
                      , text
---  other-modules:        Ingscale
   ghc-options:         -Wall
   cpp-options:  -DTEST

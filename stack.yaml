@@ -6,6 +6,9 @@ resolver: lts-5.11
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
+- location:
+    git: git@github.com:mtesseract/quantities
+    commit: 8c5255758e17a849da5286c54f0f6a81441253ad
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps: []
