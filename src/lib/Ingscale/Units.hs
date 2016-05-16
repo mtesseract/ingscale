@@ -10,6 +10,7 @@ module Ingscale.Units
        ( _units
        , printUnit
        , lookupBaseUnit
+       , lookupUnitsByBase
        , filterUnitsByBase
        , lookupUnitSpec
        , lookupConversionFactor
@@ -19,6 +20,7 @@ module Ingscale.Units
 import           Control.Lens
 import           Data.Map (Map, fromList)
 import qualified Data.Map as M
+import           Data.Maybe (catMaybes)
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
 import           Ingscale.Types
@@ -146,3 +148,10 @@ conversionFactor fromUnit toUnit
                               , printUnit fromUnit
                               , " and "
                               , printUnit toUnit ]
+
+lookupUnitsByBase :: Unit -> [Unit]
+lookupUnitsByBase b = catMaybes $
+  map (\ (u, s) -> if s ^. base == b
+                   then Just u
+                   else Nothing)
+    (M.toList _units)

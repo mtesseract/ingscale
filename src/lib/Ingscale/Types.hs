@@ -61,7 +61,7 @@ makeFields ''UnitSpec
 -- | A Quantity is the combination of a (rational) number and a Unit.
 data Quantity = Quantity { quantityNumber :: Rational
                          , quantityUnit :: Unit
-                         } deriving (Show)
+                         } deriving (Show, Eq)
 
 makeFields ''Quantity
 
