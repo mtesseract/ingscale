@@ -3,6 +3,8 @@
 
 -- API is not necessarily stable.
 
+{-# LANGUAGE CPP #-}
+
 module Ingscale (Unit(..),
                  Quantity(..),
                  Ingredient(..),
@@ -22,6 +24,8 @@ module Ingscale (Unit(..),
                  transformIngredient,
                  transformIngredients,
                  scaleIngredients,
+                 lookupBaseUnit,
+                 lookupUnitsByBase,
                  printQuantity,
                  printIngredient,
                  printIngredients,
@@ -73,7 +77,7 @@ data UnitSpec = UnitSpec
 -- | A Quantity is the combination of a (rational) number and a Unit.
 data Quantity = Quantity { quantityNumber :: Rational
                          , quantityUnit :: Unit
-                         } deriving (Show)
+                         } deriving (Show, Eq)
 
 -- | An Ingredient is the combination of an ingredient name and a
 -- Quantity.
@@ -125,7 +129,7 @@ unitSpecifications =
              , unitspecAliases    = [] }),
    (UnitKG, -- Kilogram
     UnitSpec { unitspecName       = "kg"
-             , unitspecBase       = UnitG
+             , unitspecBase       = UnitKG
              , unitspecConversion = 1
              , unitspecRound      = 3
              , unitspecAliases    = [] }),
@@ -143,7 +147,7 @@ unitSpecifications =
              , unitspecAliases    = [] }),
    (UnitLB, -- Pound
     UnitSpec { unitspecName       = "lb"
-             , unitspecBase       = UnitG
+             , unitspecBase       = UnitKG
              , unitspecConversion = 0.45359237
              , unitspecRound      = 2
              , unitspecAliases    = [] })]
@@ -187,6 +191,14 @@ lookupConversionFactor :: Unit -> Either String Rational
 lookupConversionFactor unit =
   maybeToEither errMsg (lookupUnitSpec' unit unitspecConversion)
   where errMsg = "failed to lookup conversion factor for unit " ++ show unit
+
+lookupUnitsByBase :: Unit -> [Unit]
+lookupUnitsByBase b = catMaybes $
+  map (\ (u, s) -> if unitspecBase s == b
+                   then Just u
+                   else Nothing)
+    unitSpecifications
+  
 
 -- | Given a Unit, lookup its base Unit (every Unit needs a base
 -- Unit!).
